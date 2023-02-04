@@ -1,0 +1,4 @@
+[influx2]
+url = "http://influxdb:8086"
+org = "ovh"
+token = "abcd"
