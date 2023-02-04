@@ -5,4 +5,8 @@ The script will check for all subscribed bare metal servers with a get to : '/de
 
 For each mac address of the servers , it will query upload/download speeds , packets per second and errors. The result is inserted into a time-series database (InfluxDB).
 
-This script can be launched from an hourly CRON. 
+This script can be launched from an hourly CRON.
+
+A docker file is provided to run the script in Docker (useful if InfluxDB is only accessible on a docker network), to be launched with docker :
+
+docker build -t ovh-network-poller && docker run -it --rm --network=influxdb-network --name ovh-network-poller ovh-network-poller
