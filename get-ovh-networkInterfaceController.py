@@ -35,12 +35,13 @@ def main():
                 if debug:
                     print( i + '>'+ url)
                 try:
-                    result = client.get(url, period="hourly", type=i,)
+                    result = client.get(url, period="daily", type=i,)
                 except:
                     continue
                 for j in result:
                     point= Point(i)
-                    point.tag('type',server)
+                    point.tag('server',server)
+                    point.tag('mac',mac)
                     point.time(int(j['timestamp'])*1000000000)
                     for key, value in j["value"].items():
                         try :
