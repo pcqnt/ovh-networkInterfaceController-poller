@@ -1,67 +1,87 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
-import os
 import ovh
+from time import sleep
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
+from dataclasses import dataclass
+from dotenv import dotenv_values
+import logging
 
 def main():
-    # Load env variables 
-    # APP_KEY="xxx"
-    # APP_SECRET="yyy"
-    # CONSUMER_KEY="zzzz"
-    from dotenv import dotenv_values
+    mrtg_types=['traffic:download','traffic:upload', 'errors:upload', 'errors:download', 'packets:upload','packets:download']
     config=dotenv_values(".env")
 
-    debug=True
-    # Instanciate an OVH Client.
-    # You can generate new credentials with full access to your account on
-    # the token creation page
     client = ovh.Client(
         endpoint='ovh-eu',               # Endpoint of API OVH Europe (List of available endpoints)
         application_key=config['APP_KEY'],    # Application Key
         application_secret=config['APP_SECRET'], # Application Secret
         consumer_key=config['CONSUMER_KEY'],       # Consumer Key
     )
+    @dataclass
+    class SERVER:
+        name: str
+        interfaces: list
+    @dataclass
+    class MEASUREMENT:
+        server: str
+        linktype: str
+        mac: str
+        timestamp: int
+        value: float
 
     result = client.get('/dedicated/server')
-    
-    for server in result : 
-        interfaces = client.get('/dedicated/server/'+server+'/networkInterfaceController')
-        for mac in interfaces:
-            mrtg_types=['traffic:upload','traffic:download', 'errors:upload', 'errors:download', 'packets:upload','packets:download']
-            for i in mrtg_types : 
-                url= "/dedicated/server/"+server+"/networkInterfaceController/"+mac+"/mrtg"
-                if debug:
-                    print( i + '>'+ url)
+    all_servers=[]
+    for server in result:
+        url= '/dedicated/server/'+server+'/networkInterfaceController'
+        try: 
+            list_of_macs=client.get(url)
+        except:
+            logging.warning('API Error:'+ url)
+        all_mac_details=[]
+        for mac in list_of_macs:
+            url= '/dedicated/server/'+server+'/networkInterfaceController/'+mac
+            try:
+                mac_details=client.get(url)
+            except:
+                logging.warning('API Error:'+ url)
+            all_mac_details.append(mac_details)
+            
+        all_servers.append( SERVER( server , all_mac_details))
+
+    for i in mrtg_types:
+        result_list=[]
+        for server in all_servers:
+            for interface in server.interfaces :
+                mac = interface['mac']
+                url= "/dedicated/server/"+server.name+"/networkInterfaceController/"+mac+"/mrtg"
                 try:
-                    result = client.get(url, period="daily", type=i,)
+                     result2 = client.get(url, period="hourly", type=i,)
                 except:
+                    logging.warning('API Error'+i+url)
+                    logging.warning(str(interface))
                     continue
-                for j in result:
-                    point= Point(i)
-                    point.tag('server',server)
-                    point.tag('mac',mac)
-                    point.time(int(j['timestamp'])*1000000000)
-                    for key, value in j["value"].items():
-                        try :
-                            x= int(value)
-                            point.field( key , x )
-                        except:
-                            point.field(key,value)
-
-                    with InfluxDBClient.from_config_file("config.toml") as influxclient:
-                        with influxclient.write_api(write_options=SYNCHRONOUS) as writer:
-                            try:
-                                writer.write(bucket="my-bucket", record=[point])
-                            except:
-                                continue
-
-#
-# Flux Query : 
-#from(bucket: "my-bucket")
-#  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)
-
+                for j in result2:
+                    try:
+                        value= float(j['value']['value'])
+                    except:
+                        continue
+                    result_list.append( MEASUREMENT( server=server.name, mac=mac,
+                        timestamp= int(j['timestamp']),
+                        value= float(j['value']['value']),
+                        linktype=interface['linkType'] ))
+        with InfluxDBClient.from_config_file("config.toml") as client:
+            with client.write_api() as writer:
+                logging.info('writing length:', len(result_list))
+                writer.write(
+                    bucket='network-poll',
+                    record=result_list,
+                    record_measurement_name=i,
+                    record_tag_keys=['server','mac','linktype'],
+                    record_field_keys=['value'],
+                    record_time_key='timestamp',
+                    write_precision='s'
+                )
 
 
 if __name__ == '__main__':
