@@ -9,7 +9,9 @@ from dotenv import dotenv_values
 import logging
 
 def main():
-    mrtg_types=['traffic:download','traffic:upload', 'errors:upload', 'errors:download', 'packets:upload','packets:download']
+    mrtg_types=['traffic:download','traffic:upload', 
+        'errors:upload', 'errors:download', 
+        'packets:upload','packets:download']
     config=dotenv_values(".env")
 
     client = ovh.Client(
@@ -56,10 +58,10 @@ def main():
                 mac = interface['mac']
                 url= "/dedicated/server/"+server.name+"/networkInterfaceController/"+mac+"/mrtg"
                 try:
-                     result2 = client.get(url, period="hourly", type=i,)
+                    result2 = client.get(url, period="hourly", type=i,)
                 except:
-                    logging.warning('API Error'+i+url)
-                    logging.warning(str(interface))
+                    logging.warning('API Error '+i+' '+url+' '+str(interface))
+                    sleep(1)
                     continue
                 for j in result2:
                     try:
