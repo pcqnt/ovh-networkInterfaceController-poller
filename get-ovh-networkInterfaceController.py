@@ -5,20 +5,22 @@ from time import sleep
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
 from dataclasses import dataclass
-from dotenv import dotenv_values
+from os import environ
 import logging
 
 def main():
     mrtg_types=['traffic:download','traffic:upload', 
         'errors:upload', 'errors:download', 
         'packets:upload','packets:download']
-    config=dotenv_values(".env")
-
+    logging.basicConfig(level=logging.DEBUG)
+    APP_KEY=environ['OVH_APP_KEY']
+    APP_SECRET=environ['OVH_APP_SECRET']
+    CONSUMER_KEY=environ['OVH_CONSUMER_KEY']
     client = ovh.Client(
         endpoint='ovh-eu',               # Endpoint of API OVH Europe (List of available endpoints)
-        application_key=config['APP_KEY'],    # Application Key
-        application_secret=config['APP_SECRET'], # Application Secret
-        consumer_key=config['CONSUMER_KEY'],       # Consumer Key
+        application_key=APP_KEY,    # Application Key
+        application_secret=APP_SECRET, # Application Secret
+        consumer_key=CONSUMER_KEY,       # Consumer Key
     )
     @dataclass
     class SERVER:
@@ -48,7 +50,6 @@ def main():
             except:
                 logging.warning('API Error:'+ url)
             all_mac_details.append(mac_details)
-            
         all_servers.append( SERVER( server , all_mac_details))
 
     for i in mrtg_types:
@@ -74,7 +75,7 @@ def main():
                         linktype=interface['linkType'] ))
         with InfluxDBClient.from_config_file("config.toml") as client:
             with client.write_api() as writer:
-                logging.info('writing length:', len(result_list))
+                logging.info('writing length:'+str(len(result_list)))
                 writer.write(
                     bucket='network-poll',
                     record=result_list,
