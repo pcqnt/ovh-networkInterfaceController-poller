@@ -3,7 +3,6 @@
 import ovh
 from time import sleep
 from influxdb_client import InfluxDBClient, Point, WriteOptions
-from influxdb_client.client.write_api import SYNCHRONOUS
 from dataclasses import dataclass
 from os import environ
 import logging
