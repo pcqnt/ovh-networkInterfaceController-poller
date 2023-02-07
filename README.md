@@ -9,4 +9,10 @@ This script can be launched from an hourly CRON.
 
 A docker file is provided to run the script in Docker (useful if InfluxDB is only accessible on a docker network), to be launched with docker :
 
-docker build -t ovh-network-poller && docker run -it --rm --network=influxdb-network --name ovh-network-poller ovh-network-poller
+docker build -t ovh-network-poller && \
+docker run -it --rm \
+	--network=influxdb-network --name ovh-network-poller  \
+	-e OVH_CONSUMER_KEY="aaa" \
+	-e OVH_APP_SECRET="bbb" \
+	-e OVH_APP_KEY="ccc" \
+	ovh-network-poller
