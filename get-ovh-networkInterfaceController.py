@@ -13,14 +13,12 @@ def main():
         'errors:upload', 'errors:download', 
         'packets:upload','packets:download']
     logging.basicConfig(level=logging.DEBUG)
-    APP_KEY=environ['OVH_APP_KEY']
-    APP_SECRET=environ['OVH_APP_SECRET']
-    CONSUMER_KEY=environ['OVH_CONSUMER_KEY']
+
     client = ovh.Client(
         endpoint='ovh-eu',               # Endpoint of API OVH Europe (List of available endpoints)
-        application_key=APP_KEY,    # Application Key
-        application_secret=APP_SECRET, # Application Secret
-        consumer_key=CONSUMER_KEY,       # Consumer Key
+        application_key=environ['OVH_APP_KEY'],    # Application Key
+        application_secret=environ['OVH_APP_SECRET'], # Application Secret
+        consumer_key=environ['OVH_CONSUMER_KEY'],       # Consumer Key
     )
     @dataclass
     class SERVER:
@@ -48,7 +46,7 @@ def main():
             try:
                 mac_details=client.get(url)
             except:
-                logging.warning('API Error:'+ url)
+                logging.warning('API Error :'+ url)
             all_mac_details.append(mac_details)
         all_servers.append( SERVER( server , all_mac_details))
 
@@ -61,18 +59,19 @@ def main():
                 try:
                     result2 = client.get(url, period="hourly", type=i,)
                 except:
-                    logging.warning('API Error '+i+' '+url+' '+str(interface))
+                    logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
                     sleep(1)
                     continue
                 for j in result2:
                     try:
                         value= float(j['value']['value'])
                     except:
-                        continue
-                    result_list.append( MEASUREMENT( server=server.name, mac=mac,
-                        timestamp= int(j['timestamp']),
-                        value= float(j['value']['value']),
-                        linktype=interface['linkType'] ))
+                        logging.warning('Error converting value to float'+str(value))
+                    else:
+                        result_list.append( MEASUREMENT( server=server.name, mac=mac,
+                            timestamp= int(j['timestamp']),
+                            value= float(j['value']['value']),
+                            linktype=interface['linkType'] ))
         with InfluxDBClient.from_config_file("config.toml") as client:
             with client.write_api() as writer:
                 logging.info('writing length:'+str(len(result_list)))
