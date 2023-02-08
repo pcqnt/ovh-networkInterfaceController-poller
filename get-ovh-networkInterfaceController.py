@@ -25,12 +25,13 @@ def main():
         interfaces: list
     @dataclass
     class MEASUREMENT:
+        name: str
         server: str
         linktype: str
         mac: str
         timestamp: int
         value: float
-
+        measurement_type: str
 
     result = client_ovh.get('/dedicated/server')
     all_servers=[]
@@ -69,19 +70,23 @@ def main():
                     except:
                         logging.warning('Error converting value to float:"'+str(value)+'"')
                     else:
-                        result_list.append( MEASUREMENT( server=server.name, mac=mac,
+                        result_list.append( MEASUREMENT( name='network', 
+                            server=server.name, 
+                            mac=mac,
                             timestamp= int(j['timestamp']),
                             value= float(j['value']['value']),
-                            linktype=interface['linkType'] ))
+                            linktype=interface['linkType'], 
+                            measurement_type=i ))
         with InfluxDBClient.from_config_file("config.toml") as client_influx:
             with client_influx.write_api() as writer:
                 logging.info('writing length:'+str(len(result_list)))
                 writer.write(
-                    bucket='network-poll',
+                    bucket='network-poll2',
                     record=result_list,
-                    record_measurement_name=i,
-                    record_tag_keys=['server','mac','linktype'],
-                    record_field_keys=['value'],
+                    record_measurement_name='name',
+                    record_tag_keys=['server', 'mac','linktype'],
+                    record_field_keys='measurement_type',
+                    record_field_value='value',
                     record_time_key='timestamp',
                     write_precision='s'
                 )
