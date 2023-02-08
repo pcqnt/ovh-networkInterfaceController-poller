@@ -81,7 +81,7 @@ def main():
             with client_influx.write_api() as writer:
                 logging.info('writing length:'+str(len(result_list)))
                 writer.write(
-                    bucket='network-poll2',
+                    bucket='network-poll',
                     record=result_list,
                     record_measurement_name='name',
                     record_tag_keys=['server', 'mac','linktype'],
