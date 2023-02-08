@@ -12,7 +12,7 @@ def main():
     mrtg_types=['traffic:upload', 'traffic:download', 
         'errors:upload', 'errors:download', 
         'packets:upload','packets:download']
-    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.DEBUG)
 
     client_ovh = ovh.Client(
         endpoint='ovh-eu',               # Endpoint of API OVH Europe (List of available endpoints)
@@ -21,9 +21,9 @@ def main():
         consumer_key=environ['OVH_CONSUMER_KEY'],       # Consumer Key
     )
     @dataclass
-    class SERVER:
-        name: str
-        interfaces: list
+    class INTERFACE:
+        servername: str
+        detail: dict
     @dataclass
     class MEASUREMENT:
         server: str
@@ -34,57 +34,54 @@ def main():
         measurement_type: str
 
     result = client_ovh.get('/dedicated/server')
-    all_servers=[]
+    all_interfaces=[]
     for server in result:
         url= '/dedicated/server/'+server+'/networkInterfaceController'
         try: 
             list_of_macs=client_ovh.get(url)
         except:
             logging.warning('API Error:'+url)
-        all_mac_details=[]
         for mac in list_of_macs:
             url= '/dedicated/server/'+server+'/networkInterfaceController/'+mac
             try:
                 mac_details=client_ovh.get(url)
             except:
                 logging.warning('API Error :'+url)
-            all_mac_details.append(mac_details)
-        all_servers.append(SERVER(server,all_mac_details))
-    for server in all_servers:
-        result_list=[]
-        for i in mrtg_types:
-            for interface in server.interfaces :
-                sleep(1)
-                mac = interface['mac']
-                url= '/dedicated/server/'+server.name+'/networkInterfaceController/'+mac+'/mrtg'
-                try:
-                    result2 = client_ovh.get(url, period='hourly', type=i,)
-                except:
-                    logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
-                else:
-                    for j in result2:
-                        try:
-                            value= float(j['value']['value'])
-                        except:
-                            logging.warning('Error converting value to float:"'+str(value)+'"')
-                        else:
-                            result_list.append( MEASUREMENT( server=server.name, 
-                                mac=mac,
-                                timestamp= int(j['timestamp']),
-                                value= float(j['value']['value']),
-                                linktype=interface['linkType'],
-                                measurement_type=i ))
-        with InfluxDBClient.from_config_file("config.toml") as client_influx:
-            with client_influx.write_api() as writer:
-                logging.info('writing length:'+str(len(result_list)))
-                writer.write(
-                    bucket='network-poll',
-                    record=result_list,
-                    record_measurement_key='server',
-                    record_tag_keys=['mac','linktype','measurement_type'],
-                    record_field_keys=['value'],
-                    record_time_key='timestamp',
-                    write_precision=WritePrecision.S)
+            else:
+                all_interfaces.append(INTERFACE(servername=server,detail=mac_details))
+    result_list=[]
+    for i in mrtg_types:
+        for interface in all_interfaces:
+            mac = interface.detail['mac']
+            url= '/dedicated/server/'+interface.servername+'/networkInterfaceController/'+mac+'/mrtg'
+            try:
+                result2 = client_ovh.get(url, period='hourly', type=i,)
+            except:
+                logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
+            else:
+                for j in result2:
+                    try:
+                        value= float(j['value']['value'])
+                    except:
+                        logging.warning('Error converting value to float:"'+str(value)+'"')
+                    else:
+                        result_list.append( MEASUREMENT( server=interface.servername, 
+                            mac=mac,
+                            timestamp= int(j['timestamp']),
+                            value= float(j['value']['value']),
+                            linktype=interface.detail['linkType'],
+                            measurement_type=i ))
+    with InfluxDBClient.from_config_file("config.toml") as client_influx:
+        with client_influx.write_api() as writer:
+            logging.info('writing length:'+str(len(result_list)))
+            writer.write(
+                bucket='network-poll',
+                record=result_list,
+                record_measurement_key='server',
+                record_tag_keys=['mac','linktype','measurement_type'],
+                record_field_keys=['value'],
+                record_time_key='timestamp',
+                write_precision=WritePrecision.S)
 
 if __name__ == '__main__':
     main()
