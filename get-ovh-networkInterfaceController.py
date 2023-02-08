@@ -41,14 +41,15 @@ def main():
             list_of_macs=client_ovh.get(url)
         except:
             logging.warning('API Error:'+url)
-        for mac in list_of_macs:
-            url= '/dedicated/server/'+server+'/networkInterfaceController/'+mac
-            try:
-                mac_details=client_ovh.get(url)
-            except:
-                logging.warning('API Error :'+url)
-            else:
-                all_interfaces.append(INTERFACE(servername=server,detail=mac_details))
+        else:
+            for mac in list_of_macs:
+                url= '/dedicated/server/'+server+'/networkInterfaceController/'+mac
+                try:
+                    mac_details=client_ovh.get(url)
+                except:
+                    logging.warning('API Error :'+url)
+                else:
+                    all_interfaces.append(INTERFACE(servername=server,detail=mac_details))
     result_list=[]
     for i in mrtg_types:
         for interface in all_interfaces:
