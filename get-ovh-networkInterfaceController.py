@@ -58,7 +58,7 @@ def get_all_metrics(client_ovh, interfaces_to_poll, mrtg_type):
                 try:
                     value= float(point['value']['value'])
                 except:
-                    logging.warning('Error converting value to float:"'+str(point['value']['value'])+'"')
+                    logging.debug('Error converting value to float:'+str(point))
                 else:
                     result_list.append( MEASUREMENT( server=interface.servername, 
                         mac=interface.mac,
