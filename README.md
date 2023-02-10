@@ -15,4 +15,4 @@ docker run -it --rm \
 	-e OVH_CONSUMER_KEY="aaa" \
 	-e OVH_APP_SECRET="bbb" \
 	-e OVH_APP_KEY="ccc" \
-	ovh-network-poller
+	ovh-network-poller --yearly
