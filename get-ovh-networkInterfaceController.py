@@ -89,9 +89,10 @@ def main():
         period='monthly'
     elif args.weekly:
         period='weekly'
-    else:
+    elif args.daily:
         period='daily'
-
+    else:
+        period='hourly'
 
     client_ovh = ovh.Client(
         endpoint='ovh-eu',               # Endpoint of API OVH Europe (List of available endpoints)
