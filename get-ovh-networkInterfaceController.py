@@ -10,6 +10,7 @@ import argparse
 
 @dataclass
 class INTERFACE:
+    topoll: bool
     servername: str
     linkType: str
     mac: str
@@ -40,35 +41,48 @@ def get_all_interfaces(client_ovh):
                 except:
                     logging.warning('API Error :'+url)
                 else:
-                    all_interfaces.append(INTERFACE(servername=server,
+                    all_interfaces.append(INTERFACE(topoll=True, servername=server,
                         linkType=mac_details['linkType'],
                         mac=mac_details['mac'],
                         virtualNetworkInterface=mac_details['virtualNetworkInterface']))
     return all_interfaces
 
-def get_all_metrics(client_ovh, interfaces_to_poll, chosen_period, mrtg_type):
+def get_one_mrtg_metric (client_ovh, interfaces_to_poll, chosen_period, mrtg_type ):
     result_list=[]
-    for interface in interfaces_to_poll:
-        url= '/dedicated/server/'+interface.servername+'/networkInterfaceController/'+interface.mac+'/mrtg'
-        try:
-            result = client_ovh.get(url, period=chosen_period, type=mrtg_type,)
-        except:
-            logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
-        else:
-            for point in result:
-                try:
-                    value= float(point['value']['value'])
-                except:
-                    logging.debug('Error converting value to float:'+str(point))
-                else:
-                    result_list.append( MEASUREMENT( server=interface.servername, 
-                        mac=interface.mac,
-                        timestamp= int(point['timestamp']),
-                        value= float(point['value']['value']),
-                        linkType=interface.linkType,
-                        measurement_type=mrtg_type ))
-    return result_list
     
+    return result_list
+
+def get_all_metrics(client_ovh, interfaces_to_poll, chosen_period):
+    result_list=[]
+    all_mrtg_types=['traffic:upload', 'traffic:download', 
+        'errors:upload', 'errors:download', 
+        'packets:upload','packets:download']
+    
+    for mrtg_type in all_mrtg_types:
+        for interface in interfaces_to_poll:
+            if not interface.topoll:
+                continue
+            url= '/dedicated/server/'+interface.servername+'/networkInterfaceController/'+interface.mac+'/mrtg'
+            try:
+                result = client_ovh.get(url, period=chosen_period, type=mrtg_type,)
+            except:
+                logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
+                # if the polling returns an error 404 we exclude this interface from other polls
+                interface.topoll=False
+            else:
+                for point in result:
+                    try:
+                        value= float(point['value']['value'])
+                    except:
+                        logging.debug('Error converting value to float:'+str(point))
+                    else:
+                        result_list.append( MEASUREMENT( server=interface.servername, 
+                            mac=interface.mac,
+                            timestamp= int(point['timestamp']),
+                            value= float(point['value']['value']),
+                            linkType=interface.linkType,
+                            measurement_type=mrtg_type ))
+    return result_list
 
 def main():
     
@@ -99,17 +113,14 @@ def main():
         application_key=environ['OVH_APP_KEY'],    # Application Key
         application_secret=environ['OVH_APP_SECRET'], # Application Secret
         consumer_key=environ['OVH_CONSUMER_KEY'],       # Consumer Key
-    )
-    all_mrtg_types=['traffic:upload', 'traffic:download', 
-        'errors:upload', 'errors:download', 
-        'packets:upload','packets:download']    
+    ) 
 
     all_interfaces=get_all_interfaces(client_ovh)
     result_list=[]
 
-    for mrtg_type in all_mrtg_types:
-        result_list.append(get_all_metrics(client_ovh, all_interfaces, period, mrtg_type))
+    result_list.append(get_all_metrics(client_ovh, all_interfaces, period))
    
+   # TODO : replace toml file below with env variables 
     with InfluxDBClient.from_config_file("config.toml") as client_influx:
         with client_influx.write_api() as writer:
             logging.info('writing length:'+str(len(result_list)))
