@@ -111,9 +111,8 @@ def main():
     ) 
 
     all_interfaces=get_all_interfaces(client_ovh)
-    result_list=[]
 
-    result_list.append(get_all_metrics(client_ovh, all_interfaces, period))
+    result_list=get_all_metrics(client_ovh, all_interfaces, period)
    
    # TODO : replace toml file below with env variables 
     with InfluxDBClient.from_config_file("config.toml") as client_influx:
