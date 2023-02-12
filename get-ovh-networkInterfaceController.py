@@ -47,11 +47,6 @@ def get_all_interfaces(client_ovh):
                         virtualNetworkInterface=mac_details['virtualNetworkInterface']))
     return all_interfaces
 
-def get_one_mrtg_metric (client_ovh, interfaces_to_poll, chosen_period, mrtg_type ):
-    result_list=[]
-    
-    return result_list
-
 def get_all_metrics(client_ovh, interfaces_to_poll, chosen_period):
     result_list=[]
     all_mrtg_types=['traffic:upload', 'traffic:download', 
