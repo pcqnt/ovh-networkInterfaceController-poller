@@ -74,7 +74,7 @@ def get_all_metrics(client_ovh, interfaces_to_poll, chosen_period):
                         result_list.append( MEASUREMENT( server=interface.servername, 
                             mac=interface.mac,
                             timestamp= int(point['timestamp']),
-                            value= float(point['value']['value']),
+                            value= value,
                             linkType=interface.linkType,
                             measurement_type=mrtg_type ))
     return result_list
