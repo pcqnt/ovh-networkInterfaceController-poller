@@ -109,13 +109,14 @@ def main():
         application_secret=environ['OVH_APP_SECRET'], # Application Secret
         consumer_key=environ['OVH_CONSUMER_KEY'],       # Consumer Key
     ) 
+    influx_token= environ['INFLUX_TOKEN']
 
     all_interfaces=get_all_interfaces(client_ovh)
 
     result_list=get_all_metrics(client_ovh, all_interfaces, period)
    
-   # TODO : replace toml file below with env variables 
-    with InfluxDBClient.from_config_file("config.toml") as client_influx:
+    with InfluxDBClient(url='http://influxdb:8086',
+            token=influx_token, org='ovh') as client_influx:
         with client_influx.write_api() as writer:
             logging.info('writing length:'+str(len(result_list)))
             writer.write(
