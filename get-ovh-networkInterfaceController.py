@@ -112,6 +112,7 @@ def main():
     influx_token=environ['INFLUX_TOKEN']
     influx_url=environ['INFLUX_URL']
     influx_org=environ['INFLUX_ORG']
+    influx_bucket=environ['INFLUX_BUCKET']
 
     all_interfaces=get_all_interfaces(client_ovh)
 
@@ -122,7 +123,7 @@ def main():
         with client_influx.write_api() as writer:
             logging.info('writing length:'+str(len(result_list)))
             writer.write(
-                bucket='network-poll',
+                bucket=influx_bucket,
                 record=result_list,
                 record_measurement_key='server',
                 record_tag_keys=['mac','linkType','measurement_type'],
