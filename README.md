@@ -14,6 +14,7 @@ Required environment variables :
 - INFLUX_TOKEN
 - INFLUX_URL
 - INFLUX_ORG
+- INFLUX_BUCKET
 
 The first three environment variables can be generated on OVHcloud's website (cf documentation: https://docs.ovh.com/gb/en/api/first-steps-with-ovh-api/#advanced-usage-pair-ovhcloud-apis-with-an-application_2 ).
 
@@ -29,6 +30,7 @@ docker run -it --rm \
 	-e INFLUX_TOKEN="dddd" \
 	-e INFLUX_URL="http://influxdb:8086" \
 	-e INFLUX_ORG="ovh" \
+	-e INFLUX_BUCKET="network-poll" \
 	ovh-network-poller --yearly
 
 ```
