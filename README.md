@@ -7,6 +7,16 @@ For each mac address of the servers, it will query upload/download speeds , pack
 
 This script can be launched from an hourly CRON. 
 
+Required environment variables :
+- OVH_CONSUMER_KEY
+- OVH_APP_SECRET 
+- OVH_APP_KEY
+- INFLUX_TOKEN
+- INFLUX_URL
+- INFLUX_ORG
+
+The first three environment variables can be generated on OVHcloud's website (cf documentation: https://docs.ovh.com/gb/en/api/first-steps-with-ovh-api/#advanced-usage-pair-ovhcloud-apis-with-an-application_2 ).
+
 A docker file is provided to run the script in Docker (useful if InfluxDB is only accessible on a docker network), to be launched with docker :
 
 ```
