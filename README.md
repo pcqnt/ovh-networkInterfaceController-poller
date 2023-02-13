@@ -13,10 +13,12 @@ A docker file is provided to run the script in Docker (useful if InfluxDB is onl
 docker build -t ovh-network-poller
 docker run -it --rm \
 	--network=influxdb-network --name ovh-network-poller  \
-	-e OVH_CONSUMER_KEY="aaa" \
-	-e OVH_APP_SECRET="bbb" \
-	-e OVH_APP_KEY="ccc" \
-	-e INFLUX_TOKEN="ddd" \
+	-e OVH_CONSUMER_KEY="aaaa" \
+	-e OVH_APP_SECRET="bbbb" \
+	-e OVH_APP_KEY="cccc" \
+	-e INFLUX_TOKEN="dddd" \
+	-e INFLUX_URL="http://influxdb:8086" \
+	-e INFLUX_ORG="ovh" \
 	ovh-network-poller --yearly
 
 ```
