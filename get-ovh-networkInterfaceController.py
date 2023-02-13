@@ -118,7 +118,7 @@ def main():
     result_list=get_all_metrics(client_ovh, all_interfaces, period)
    
     with InfluxDBClient(url=influx_url,
-            token=influx_token, org='ovh') as client_influx:
+            token=influx_token, org=influx_org) as client_influx:
         with client_influx.write_api() as writer:
             logging.info('writing length:'+str(len(result_list)))
             writer.write(
