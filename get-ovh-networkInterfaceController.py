@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from os import environ
 import logging
 import argparse
+import asyncio
 
 @dataclass
 class INTERFACE:
-    topoll: bool
     servername: str
     linkType: str
     mac: str
@@ -41,45 +41,36 @@ def get_all_interfaces(client_ovh):
                 except:
                     logging.warning('API Error :'+url)
                 else:
-                    all_interfaces.append(INTERFACE(topoll=True, servername=server,
+                    all_interfaces.append(INTERFACE(servername=server,
                         linkType=mac_details['linkType'],
                         mac=mac_details['mac'],
                         virtualNetworkInterface=mac_details['virtualNetworkInterface']))
     return all_interfaces
 
-def get_all_metrics(client_ovh, interfaces_to_poll, chosen_period):
+def get_metrics(client_ovh, interfaces_to_poll, chosen_period,mrtg_type):
     result_list=[]
-    all_mrtg_types=['traffic:upload', 'traffic:download', 
-        'errors:upload', 'errors:download', 
-        'packets:upload','packets:download']
-    
-    for mrtg_type in all_mrtg_types:
-        for interface in interfaces_to_poll:
-            if not interface.topoll:
-                continue
-            url= '/dedicated/server/'+interface.servername+'/networkInterfaceController/'+interface.mac+'/mrtg'
-            try:
-                result = client_ovh.get(url, period=chosen_period, type=mrtg_type,)
-            except:
-                logging.warning('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
-                # if the polling returns an error 404 we exclude this interface from other polls
-                interface.topoll=False
-            else:
-                for point in result:
-                    try:
-                        value= float(point['value']['value'])
-                    except:
-                        logging.debug('Error converting value to float:'+str(point))
-                    else:
-                        result_list.append( MEASUREMENT( server=interface.servername, 
-                            mac=interface.mac,
-                            timestamp= int(point['timestamp']),
-                            value= value,
-                            linkType=interface.linkType,
-                            measurement_type=mrtg_type ))
+    for interface in interfaces_to_poll:
+        url= '/dedicated/server/'+interface.servername+'/networkInterfaceController/'+interface.mac+'/mrtg'
+        try:
+            result = client_ovh.get(url, period=chosen_period, type=mrtg_type,)
+        except:
+            logging.info('API Error (this can be caused by a disconnected interface on the server): '+url+' '+str(interface))
+        else:
+            for point in result:
+                try:
+                    value= float(point['value']['value'])
+                except:
+                    logging.debug('Error converting value to float:'+str(point))
+                else:
+                    result_list.append( MEASUREMENT( server=interface.servername, 
+                        mac=interface.mac,
+                        timestamp= int(point['timestamp']),
+                        value= value,
+                        linkType=interface.linkType,
+                        measurement_type=mrtg_type ))
     return result_list
 
-def main():
+async def main():
     
     parser = argparse.ArgumentParser(description='OVHcloud network API Poller')
     parser.add_argument('--hourly',help='Poll for last hour (default)', action='store_true')
@@ -115,9 +106,20 @@ def main():
     influx_bucket=environ['INFLUX_BUCKET']
 
     all_interfaces=get_all_interfaces(client_ovh)
+    
+    result_list_of_lists= await asyncio.gather(
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'traffic:upload'),
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'traffic:download'),
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'errors:upload'),
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'errors:download'),
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'packets:upload'),
+        asyncio.to_thread(get_metrics, client_ovh, all_interfaces, period,'packets:download'),
+    )
+    result_list=[]
+    for sublist in result_list_of_lists:
+        for item in sublist:
+            result_list.append(item)
 
-    result_list=get_all_metrics(client_ovh, all_interfaces, period)
-   
     with InfluxDBClient(url=influx_url,
             token=influx_token, org=influx_org) as client_influx:
         with client_influx.write_api() as writer:
@@ -132,4 +134,4 @@ def main():
                 write_precision=WritePrecision.S)
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
